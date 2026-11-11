@@ -271,7 +271,7 @@ impl InputReport {
         }
 
         for i in 0..4 {
-            let delta = self.encoders[i].wrapping_sub(previous.encoders[i]) as i16;
+            let delta = encoder_delta(previous.encoders[i], self.encoders[i]);
             if delta != 0 {
                 events.push(HardwareEvent::EncoderTurned {
                     encoder: (i + 1) as u8,
@@ -296,5 +296,36 @@ impl InputReport {
         }
 
         events
+    }
+}
+
+/// Counter span the encoders wrap at. Hardware counters run `0..=65533/65534`, i.e. they
+/// wrap just short of a full `u16`, so plain `wrapping_sub` is off by 1-2 clicks at the seam.
+const ENCODER_WRAP: i32 = 65535;
+
+/// Signed click delta between two encoder counter readings, handling wrap-around at 0.
+/// A real turn never moves more than a few hundred counts per 20 ms poll, so any jump
+/// larger than half the range must be the counter crossing zero.
+pub fn encoder_delta(old: u16, new: u16) -> i16 {
+    let mut d = i32::from(new) - i32::from(old);
+    if d > ENCODER_WRAP / 2 {
+        d -= ENCODER_WRAP;
+    } else if d < -(ENCODER_WRAP / 2) {
+        d += ENCODER_WRAP;
+    }
+    d.clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16
+}
+
+#[cfg(test)]
+mod encoder_tests {
+    use super::encoder_delta;
+
+    #[test]
+    fn plain_and_wrap() {
+        assert_eq!(encoder_delta(100, 103), 3);
+        assert_eq!(encoder_delta(103, 100), -3);
+        assert_eq!(encoder_delta(0, 65534), -1);
+        assert_eq!(encoder_delta(65534, 0), 1);
+        assert_eq!(encoder_delta(1, 65534), -2);
     }
 }
