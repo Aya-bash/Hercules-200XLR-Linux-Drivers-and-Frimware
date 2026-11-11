@@ -1,4 +1,6 @@
 mod app;
+mod audio;
+mod config;
 mod bridge;
 mod theme;
 mod views;

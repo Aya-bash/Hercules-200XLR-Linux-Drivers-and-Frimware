@@ -4,12 +4,14 @@ use egui::{
 
 use crate::bridge::{DeviceBridge, GuiCommand};
 use crate::theme::{self, card_frame, sunken_frame};
-use hsm200_driver::{DspPreset, EqFilterType, MicDspConfig};
+use hsm200_driver::{DspPreset, EqFilterType, MicDspConfig, MicSource};
 
 pub struct DspView {
     pub config: MicDspConfig,
     pub active_preset: Option<DspPreset>,
     pub auto_sync: bool,
+    pub phantom: bool,
+    pub mic_source: MicSource,
 }
 
 impl Default for DspView {
@@ -18,6 +20,8 @@ impl Default for DspView {
             config: MicDspConfig::from_preset(DspPreset::Default),
             active_preset: Some(DspPreset::Default),
             auto_sync: true,
+            phantom: false,
+            mic_source: MicSource::Xlr,
         }
     }
 }
@@ -48,6 +52,29 @@ impl DspView {
                     }
 
                     ui.checkbox(&mut self.auto_sync, "LIVE SYNC");
+                });
+            });
+
+            ui.add_space(8.0);
+            card_frame(false).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("MIC INPUT").color(theme::COLOR_PRIMARY).strong());
+                    if ui.selectable_label(self.mic_source == MicSource::Xlr, "XLR").clicked() {
+                        self.mic_source = MicSource::Xlr;
+                        bridge.send(GuiCommand::SetMicSource(MicSource::Xlr));
+                    }
+                    if ui.selectable_label(self.mic_source == MicSource::Headset, "Headset").clicked() {
+                        self.mic_source = MicSource::Headset;
+                        bridge.send(GuiCommand::SetMicSource(MicSource::Headset));
+                    }
+                    ui.separator();
+                    if ui.checkbox(&mut self.phantom, "+48V phantom power").changed() {
+                        bridge.send(GuiCommand::SetPhantomPower(self.phantom));
+                    }
+                    ui.label(
+                        RichText::new("Only enable for condenser mics that need it.")
+                            .color(theme::COLOR_TEXT_MUTED),
+                    );
                 });
             });
 

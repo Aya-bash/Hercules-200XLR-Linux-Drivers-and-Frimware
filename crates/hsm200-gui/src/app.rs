@@ -2,18 +2,19 @@ use egui::{
     vec2, Align, Color32, FontFamily, FontId, Layout, RichText, Rounding, Sense, Stroke,
 };
 
+use crate::audio::AudioBridge;
 use crate::bridge::{DeviceBridge, DeviceEvent};
 use crate::theme::{self, card_frame};
+use crate::views::deck::DeckView;
 use crate::views::display::DisplayView;
 use crate::views::dsp::DspView;
 use crate::views::lighting::LightingView;
-use crate::views::mixer::MixerView;
 use crate::views::monitor::MonitorView;
 use hsm200_driver::{DeviceInfo, InputReport};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppTab {
-    Mixer,
+    Deck,
     Dsp,
     Lighting,
     Display,
@@ -26,7 +27,8 @@ pub struct StreamControlApp {
     connected_info: Option<DeviceInfo>,
     latest_report: Option<InputReport>,
     toast_message: Option<(String, Color32)>,
-    mixer_view: MixerView,
+    audio: AudioBridge,
+    deck_view: DeckView,
     dsp_view: DspView,
     lighting_view: LightingView,
     display_view: DisplayView,
@@ -41,11 +43,12 @@ impl StreamControlApp {
 
         Self {
             bridge,
-            active_tab: AppTab::Mixer,
+            active_tab: AppTab::Deck,
             connected_info: None,
             latest_report: None,
             toast_message: None,
-            mixer_view: MixerView::default(),
+            audio: AudioBridge::spawn(),
+            deck_view: DeckView::default(),
             dsp_view: DspView::default(),
             lighting_view: LightingView::default(),
             display_view: DisplayView::default(),
@@ -62,6 +65,8 @@ impl StreamControlApp {
                         theme::COLOR_SUCCESS,
                     ));
                     self.connected_info = Some(info);
+                    self.deck_view.reset_leds();
+                    self.bridge.send(crate::bridge::GuiCommand::SetScreenPage(self.deck_view.page as u8 + 1));
                 }
                 DeviceEvent::Disconnected(reason) => {
                     self.toast_message = Some((
@@ -72,9 +77,9 @@ impl StreamControlApp {
                 }
                 DeviceEvent::InputUpdate { report, events } => {
                     for hw_ev in &events {
-                        if let Some(msg) = self.mixer_view.handle_hardware_event(hw_ev, &self.bridge) {
+                        if let Some(msg) = self.deck_view.handle_event(hw_ev, &self.audio, &self.bridge) {
                             self.toast_message = Some((msg, theme::COLOR_PRIMARY));
-                            self.display_view.active_page = self.mixer_view.active_page;
+                            self.display_view.active_page = self.deck_view.page as u8 + 1;
                         }
                     }
                     for hw_ev in events {
@@ -96,6 +101,9 @@ impl StreamControlApp {
 impl eframe::App for StreamControlApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.process_events();
+        if self.connected_info.is_some() {
+            self.deck_view.sync_leds(&self.audio, &self.bridge);
+        }
 
         // 50 Hz request repaint for smooth VU meters & faders
         ctx.request_repaint();
@@ -135,7 +143,7 @@ impl eframe::App for StreamControlApp {
 
                     // Navigation Tabs
                     let tabs = [
-                        (AppTab::Mixer, "🎚️ MIXER"),
+                        (AppTab::Deck, "🎛️ DECK"),
                         (AppTab::Dsp, "🎙️ VOCAL DSP"),
                         (AppTab::Lighting, "💡 LIGHTING & VU"),
                         (AppTab::Display, "🖥️ LCD STUDIO"),
@@ -245,9 +253,8 @@ impl eframe::App for StreamControlApp {
                     .inner_margin(egui::Margin::same(16.0)),
             )
             .show(ctx, |ui| match self.active_tab {
-                AppTab::Mixer => {
-                    self.mixer_view
-                        .ui(ui, self.latest_report.as_ref(), &self.bridge);
+                AppTab::Deck => {
+                    self.deck_view.ui(ui, &self.audio, &self.bridge, self.latest_report.as_ref());
                 }
                 AppTab::Dsp => {
                     self.dsp_view.ui(ui, &self.bridge);
