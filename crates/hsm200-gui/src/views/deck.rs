@@ -11,7 +11,7 @@ use crate::audio::{AudioBridge, AudioSnapshot, MediaCmd, Target};
 use crate::bridge::{DeviceBridge, GuiCommand};
 use crate::config::{ButtonAction, Config};
 use crate::theme::{self, card_frame, sunken_frame};
-use hsm200_driver::{Button, HardwareEvent, InputReport, LedMode};
+use hsm200_driver::{Button, HardwareEvent, InputReport, LedMode, MixBus};
 
 const PUSH_BUTTONS: [Button; 4] = [
     Button::Encoder1Push,
@@ -27,6 +27,8 @@ pub struct DeckView {
     /// Knob currently being edited (0..3 on the active page).
     editing: Option<usize>,
     last_led: [Option<LedMode>; 4],
+    /// Last (volume %, muted) pushed to the deck's own channel display, per knob slot.
+    last_sent: [Option<(u8, bool)>; 8],
 }
 
 impl Default for DeckView {
@@ -36,6 +38,7 @@ impl Default for DeckView {
             page: 0,
             editing: None,
             last_led: [None; 4],
+            last_sent: [None; 8],
         }
     }
 }
@@ -43,6 +46,7 @@ impl Default for DeckView {
 impl DeckView {
     pub fn reset_leds(&mut self) {
         self.last_led = [None; 4];
+        self.last_sent = [None; 8];
     }
 
     fn knob_idx(&self, slot: usize) -> usize {
@@ -149,6 +153,37 @@ impl DeckView {
     /// solid = live, blinking = muted, off = unassigned or app not running.
     pub fn sync_leds(&mut self, audio: &AudioBridge, bridge: &DeviceBridge) {
         let snap = audio.snapshot();
+
+        // Mirror the PC volume of every knob onto the deck's own channel display.
+        for ch in 0..8usize {
+            let lvl = snap.level(&self.config.knobs[ch].target);
+            let state = (
+                (lvl.map_or(0.0, |l| l.volume) * 100.0).round() as u8,
+                lvl.is_some_and(|l| l.muted),
+            );
+            let prev = self.last_sent[ch];
+            if prev == Some(state) {
+                continue;
+            }
+            self.last_sent[ch] = Some(state);
+            for bus in [MixBus::Creator, MixBus::Audience] {
+                if prev.map(|p| p.0) != Some(state.0) {
+                    bridge.send(GuiCommand::SetChannelVolume {
+                        channel: ch as u8,
+                        bus,
+                        volume_pct: f32::from(state.0),
+                    });
+                }
+                if prev.map(|p| p.1) != Some(state.1) {
+                    bridge.send(GuiCommand::SetChannelMute {
+                        channel: ch as u8,
+                        bus,
+                        muted: state.1,
+                    });
+                }
+            }
+        }
+
         for slot in 0..4 {
             let t = &self.config.knobs[self.knob_idx(slot)].target;
             let mode = match snap.level(t) {
