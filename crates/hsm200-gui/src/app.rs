@@ -71,6 +71,12 @@ impl StreamControlApp {
                     self.connected_info = None;
                 }
                 DeviceEvent::InputUpdate { report, events } => {
+                    for hw_ev in &events {
+                        if let Some(msg) = self.mixer_view.handle_hardware_event(hw_ev, &self.bridge) {
+                            self.toast_message = Some((msg, theme::COLOR_PRIMARY));
+                            self.display_view.active_page = self.mixer_view.active_page;
+                        }
+                    }
                     for hw_ev in events {
                         self.monitor_view.push_event(hw_ev);
                     }
