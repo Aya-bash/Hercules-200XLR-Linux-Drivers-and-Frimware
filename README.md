@@ -10,6 +10,7 @@ Reverse-engineered USB protocol documentation, Rust user-space Linux driver (`hs
 - [`udev/99-hercules-stream-200xlr.rules`](udev/99-hercules-stream-200xlr.rules) — Linux `udev` rules granting non-root USB access to `06f8:e054` (Runtime) and `06f8:e055` (DFU Bootloader).
 - [`crates/hsm200-driver`](crates/hsm200-driver) — Rust library crate implementing the synchronous USB Bulk transport (`Interface 3`, `AltSetting 1`, `EP 0x01 OUT` / `EP 0x81 IN`) and high-level hardware state APIs.
 - [`crates/hsm200-control`](crates/hsm200-control) — Rust CLI & live event monitor binary (`hsm200-control`).
+- [`crates/hsm200-gui`](crates/hsm200-gui) — Modern Rust desktop companion GUI (`hsm200-gui`) featuring deep black/gray elevated surfaces, sunken fader tracks, and `#FF0080` neon pink/purple studio aesthetic.
 
 ---
 
@@ -86,3 +87,21 @@ The compiled binary will be located at `./target/release/hsm200-control`.
 ./target/release/hsm200-control display --page 2
 ./target/release/hsm200-control display --power off
 ```
+
+---
+
+## 4. Modern Desktop Companion GUI (`hsm200-gui`)
+
+The repository includes a modern hardware companion GUI written in Rust (`eframe`/`egui`) with a custom `#FF0080` (Electric Neon Pink / Magenta) dark studio theme:
+
+```bash
+./target/release/hsm200-gui
+```
+
+### Features
+- **Dual-Bus Studio Audio Mixer**: 4-channel strip faders with Creator and Audience mix buses, link/split mode, instant mute toggles, and dedicated headphone monitor bus.
+- **AK7735EQ Studio Vocal DSP Processor**: Full control of the onboard hardware audio DSP, including analog preamp gain (+0..65 dB), noise gate, 3-band parametric EQ spline visualizer, compressor, and peak limiter. Quick switching between all 8 hardware presets.
+- **Hardware Lighting & RGB Meters**: Per-button backlight modes (`Solid`, `Blink`, `Off`) for lower action buttons, encoder buttons, and control buttons; LCD brightness control; and 3-point gradient color customizer for channel VU meters.
+- **480x272 Virtual LCD Display**: Live virtual LCD screen preview, instant page switching (Page 1 / Page 2), built-in test pattern and solid color fill generators, and arbitrary PNG/JPEG wallpaper uploading with automatic scaling and paletting.
+- **Live Hardware Event Inspector**: Real-time 50 Hz USB telemetry feed, action button bitmask inspector, 16-bit encoder delta tracking, and hardware flag monitor.
+

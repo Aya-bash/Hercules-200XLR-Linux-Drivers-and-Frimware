@@ -1,0 +1,18 @@
+[package]
+name = "hsm200-gui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Modern elevated studio GUI control software for the Hercules Stream 200 XLR audio mixer and stream controller"
+
+[[bin]]
+name = "hsm200-gui"
+path = "src/main.rs"
+
+[dependencies]
+hsm200-driver = { path = "../hsm200-driver" }
+eframe = { workspace = true }
+egui = { workspace = true }
+image = { workspace = true }
+rfd = { workspace = true }
