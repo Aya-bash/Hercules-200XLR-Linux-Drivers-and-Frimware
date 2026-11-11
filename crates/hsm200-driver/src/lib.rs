@@ -235,15 +235,32 @@ impl Stream200Xlr {
         display::set_screen_page(&mut self.transport, page)
     }
 
-    /// Fills the live LCD background wallpaper with a solid `RgbColor` (`0x0801` `sub_cmd = 0x09` + commit `0x23`).
-    pub fn fill_screen_background(&mut self, color: RgbColor) -> Result<()> {
+    /// Fills the LCD background wallpaper with a solid `RgbColor` (`0x0801` `sub_cmd = 0x09` + commit `0x23`).
+    /// `slot`: `6` for active live mixer screen, `0` for standby screensaver screen.
+    pub fn fill_screen_background_slot(&mut self, color: RgbColor, slot: u32) -> Result<()> {
         let paletted = display::make_solid_paletted_background(color);
-        display::upload_paletted_background(&mut self.transport, &paletted, 0)
+        display::upload_paletted_background(&mut self.transport, &paletted, slot)
     }
 
-    /// Uploads a full-screen `480x272` RGB565 image (`261,120` bytes) to the live LCD background (`0x0801`).
+    /// Fills the active live LCD background wallpaper (`slot = 6`) with a solid `RgbColor`.
+    pub fn fill_screen_background(&mut self, color: RgbColor) -> Result<()> {
+        self.fill_screen_background_slot(color, display::LIVE_BACKGROUND_SLOT_DEFAULT)
+    }
+
+    /// Uploads a full-screen `480x272` RGB565 image (`261,120` bytes) to the LCD background (`0x0801`).
+    /// `slot`: `6` for active live mixer screen, `0` for standby screensaver screen.
+    pub fn upload_rgb565_frame_slot(&mut self, rgb565_le: &[u8], slot: u32) -> Result<()> {
+        display::upload_rgb565_framebuffer(&mut self.transport, rgb565_le, slot)
+    }
+
+    /// Uploads a full-screen `480x272` RGB565 image (`261,120` bytes) to the active live LCD background (`slot = 6`).
     pub fn upload_rgb565_frame(&mut self, rgb565_le: &[u8]) -> Result<()> {
-        display::upload_rgb565_framebuffer(&mut self.transport, rgb565_le)
+        self.upload_rgb565_frame_slot(rgb565_le, display::LIVE_BACKGROUND_SLOT_DEFAULT)
+    }
+
+    /// Uploads a full-screen `480x272` 16-bit RGB565 splash framebuffer directly (`0x0801` `sub_cmd = 0x05`).
+    pub fn upload_rgb565_splash(&mut self, rgb565_le: &[u8]) -> Result<()> {
+        display::upload_rgb565_splash(&mut self.transport, rgb565_le)
     }
 }
 

@@ -136,6 +136,14 @@ enum Commands {
         /// Upload a PNG, JPEG, or BMP image file (automatically resized to 480x272 RGB565)
         #[arg(short, long)]
         image: Option<PathBuf>,
+
+        /// Target background slot ID (`6` = live mixer background, `0` = standby screensaver, `8`, `7`, `10`, `12`, `11` = presets). Default: 6
+        #[arg(long, default_value_t = 6)]
+        slot: u32,
+
+        /// Upload directly as 16-bit RGB565 splash image (0x0801 sub_cmd = 0x05) instead of paletted background
+        #[arg(long)]
+        splash: bool,
     },
 }
 
@@ -586,6 +594,8 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             fill,
             test_pattern,
             image,
+            slot,
+            splash,
         } => {
             if let Some(pwr) = power {
                 dev.set_screen_power(pwr.as_bool())?;
@@ -598,16 +608,23 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             if let Some(hex) = fill {
                 let color = RgbColor::from_hex(&hex)
                     .ok_or_else(|| format!("Invalid hex color '{hex}' (expected RRGGBB)"))?;
-                dev.fill_screen_background(color)?;
+                let _ = dev.set_screen_power(true);
+                dev.fill_screen_background_slot(color, slot)?;
                 println!(
-                    "Uploaded 480x272 solid background (#{:02X}{:02X}{:02X}) to LCD.",
+                    "Uploaded 480x272 solid background (#{:02X}{:02X}{:02X}) to LCD (slot {slot}).",
                     color.r, color.g, color.b
                 );
             }
             if test_pattern {
                 let frame = make_test_pattern_rgb565_frame();
-                dev.upload_rgb565_frame(&frame)?;
-                println!("Uploaded 480x272 RGB565 color-bars test pattern to LCD.");
+                let _ = dev.set_screen_power(true);
+                if splash {
+                    dev.upload_rgb565_splash(&frame)?;
+                    println!("Uploaded 480x272 RGB565 color-bars test pattern as splash screen (0x0801 sub_cmd=0x05).");
+                } else {
+                    dev.upload_rgb565_frame_slot(&frame, slot)?;
+                    println!("Uploaded 480x272 RGB565 color-bars test pattern to LCD (slot {slot}).");
+                }
             }
             if let Some(img_path) = image {
                 let img = image::open(&img_path)?;
@@ -620,11 +637,20 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     let p565 = rgb888_to_rgb565(pixel[0], pixel[1], pixel[2]);
                     rgb565_le.extend_from_slice(&p565.to_le_bytes());
                 }
-                dev.upload_rgb565_frame(&rgb565_le)?;
-                println!(
-                    "Uploaded '{}' (resized to 480x272 RGB565) to LCD.",
-                    img_path.display()
-                );
+                let _ = dev.set_screen_power(true);
+                if splash {
+                    dev.upload_rgb565_splash(&rgb565_le)?;
+                    println!(
+                        "Uploaded '{}' as 480x272 RGB565 splash screen (0x0801 sub_cmd=0x05).",
+                        img_path.display()
+                    );
+                } else {
+                    dev.upload_rgb565_frame_slot(&rgb565_le, slot)?;
+                    println!(
+                        "Uploaded '{}' (resized to 480x272 RGB565) to LCD (slot {slot}).",
+                        img_path.display()
+                    );
+                }
             }
         }
     }

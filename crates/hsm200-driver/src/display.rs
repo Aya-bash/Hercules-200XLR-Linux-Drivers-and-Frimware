@@ -12,6 +12,16 @@ pub const PALETTED_BG_TOTAL_BYTES: usize = 0x20200;
 /// Total size of a `480x272` 16-bit RGB565 splash framebuffer (`480 * 272 * 2 = 0x3FC00` = `261,120` bytes).
 pub const RGB565_FRAME_TOTAL_BYTES: usize = 0x3FC00;
 
+/// Default slot ID for the active live mixer screen background (preset 0).
+/// Extracted from lookup table `[6, 8, 7, 10, 12, 11]` at `0x18001091b` / `0x1801007b0` in `hsm_api_core_x64.dll`.
+pub const LIVE_BACKGROUND_SLOT_DEFAULT: u32 = 6;
+
+/// Slot ID for the standby / screensaver screen background (`dl != 0` at `0x180010b3a`).
+pub const STANDBY_BACKGROUND_SLOT: u32 = 0;
+
+/// All 6 live background slots corresponding to display contrast/brightness presets 0..=5.
+pub const BACKGROUND_SLOT_PRESETS: [u32; 6] = [6, 8, 7, 10, 12, 11];
+
 /// Sub-command IDs for Command `0x0801` (`ScreenControl` — `payload[0x00..0x04]` / packet `+0x0C`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
@@ -139,8 +149,12 @@ pub fn upload_paletted_background(
     commit_payload[0x00..0x04]
         .copy_from_slice(&(ScreenSubCommand::CommitBackground as u32).to_le_bytes());
     commit_payload[0x08..0x0C].copy_from_slice(&(total_len as u32).to_le_bytes()); // +0x14 = 0x20200
-    commit_payload[0x14..0x18].copy_from_slice(&commit_slot.to_le_bytes()); // +0x20 = slot_id (0 = live)
+    commit_payload[0x14..0x18].copy_from_slice(&commit_slot.to_le_bytes()); // +0x20 = slot_id (6 = live mixer)
     transport.transact(CommandId::ScreenControl, &commit_payload)?;
+
+    // Refresh UI display layers matching 0x180012a81..0x180012b15 in hsm_api_core_x64.dll
+    send_screen_command(transport, ScreenSubCommand::RefreshPage1, 0)?;
+    send_screen_command(transport, ScreenSubCommand::RefreshPage2, 0)?;
 
     Ok(())
 }
@@ -195,11 +209,15 @@ pub fn rgb565_to_paletted_background(rgb565_le: &[u8]) -> Result<Vec<u8>> {
     Ok(buf)
 }
 
-/// Uploads a full-screen `480x272` RGB565 framebuffer (`261,120` bytes) to the live LCD background
-/// by converting it to the `0x20200` paletted background format (`sub_cmd = 0x09` + commit `0x23`).
-pub fn upload_rgb565_framebuffer(transport: &mut UsbTransport, rgb565_le: &[u8]) -> Result<()> {
+/// Uploads a full-screen `480x272` RGB565 framebuffer (`261,120` bytes) to the LCD background
+/// by converting it to the `0x20200` paletted background format (`sub_cmd = 0x09` + commit `0x23` slot `commit_slot`).
+pub fn upload_rgb565_framebuffer(
+    transport: &mut UsbTransport,
+    rgb565_le: &[u8],
+    commit_slot: u32,
+) -> Result<()> {
     let paletted = rgb565_to_paletted_background(rgb565_le)?;
-    upload_paletted_background(transport, &paletted, 0)
+    upload_paletted_background(transport, &paletted, commit_slot)
 }
 
 /// Uploads a raw `480x272` RGB565 splash framebuffer (`0x3FC00` = `261,120` bytes) using `sub_cmd = 0x05`

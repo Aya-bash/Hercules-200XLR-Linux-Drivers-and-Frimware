@@ -286,13 +286,15 @@ Controls screen power state (wake/sleep), page switching, UI layer visibility, a
 ### 9.2 `0x0801` Subcommands (`+0x0C`)
 | `sub_cmd` | Total Transfer Size | Description |
 | :--- | :--- | :--- |
-| `0x0001` | `40` bytes (`chunk_size = 0`) | **Screen Wake / Enable Display** |
-| `0x0003` | `40` bytes (`chunk_size = 0`) | **Screen Sleep / Blank Display** |
-| `0x0005` | `0x3FC00` (`261,120` bytes) | **Full-Screen Raw RGB565 Framebuffer Transfer**: `480 × 272 × 2` bytes streamed in chunks at `+0x28`. |
-| `0x0009` | `0x20200` (`131,584` bytes) | **Full-Screen 8-Bit Paletted Background Transfer**: `1024`-byte BGRA8888 palette (256 × 4 bytes) + `130,560` bytes (`480 × 272` 8-bit pixel indices), followed by a 40-byte commit packet with `sub_cmd = 0x0023`. |
-| `0x0023` | `40` bytes (`chunk_size = 0`) | **Commit Background Transfer**: Finalizes a `0x0009` transfer (`+0x20` = slot/preset ID). |
-| `0x0010` / `0x0200` | `40` bytes (`chunk_size = 0`) | **Switch Active UI Page / Layout** (`+0x24` = page index). |
-| `0x0080` / `0x0100` | `40` bytes (`chunk_size = 0`) | **Toggle UI Overlay / Layer Visibility**. |
+| `0x0001` | `40` bytes (`chunk_size = 0`) | **Screen Wake / Enable Display** (`0x180012305`). |
+| `0x0003` | `40` bytes (`chunk_size = 0`) | **Screen Sleep / Blank Display** (`0x180012305`). |
+| `0x0005` | `0x3FC00` (`261,120` bytes) | **Full-Screen Raw RGB565 Boot Splash Framebuffer Transfer**: `480 × 272 × 2` bytes streamed in chunks at `+0x28` (`0x180011610` / `HSM_FlashWrite_SplashScreenCustomImage`). No commit packet required. |
+| `0x0009` | `0x20200` (`131,584` bytes) | **Full-Screen 8-Bit Paletted Background Transfer**: `1024`-byte BGRA8888 palette (256 × 4 bytes `[B, G, R, 0xFF]`) + `130,560` bytes (`480 × 272` 8-bit pixel indices) streamed in chunks of up to 472 bytes (`0x180010900`), followed by a 40-byte commit packet with `sub_cmd = 0x0023`. |
+| `0x0023` | `40` bytes (`chunk_size = 0`) | **Commit Background Transfer** (`0x180010b33`): Finalizes a `0x0009` background upload.<br>• `+0x14` = `0x00020200` (cumulative byte offset)<br>• `+0x18` = `0x00000000` (remaining bytes)<br>• `+0x1C` = `0x00000000` (chunk size)<br>• `+0x20` = `slot_id`: Target wallpaper slot.<br>&nbsp;&nbsp;- `6`: Active live mixer background (default preset 0). Lookup table at `0x1801007b0` indexes presets 0..5 to slots `[6, 8, 7, 10, 12, 11]`.<br>&nbsp;&nbsp;- `0`: Standby / screensaver background screen (`dl != 0` in `0x180010b3a`). |
+| `0x0010` | `40` bytes (`chunk_size = 0`) | **Select Active UI Page** (`0x180011960`): `+0x24` = `page - 1` (`0` for Page 1, `1` for Page 2). |
+| `0x0200` | `40` bytes (`chunk_size = 0`) | **Select UI Layout** (`0x180011960`): `+0x24` = `(layout << 8) - 0x100`. |
+| `0x0080` | `40` bytes (`chunk_size = 0`) | **Refresh Page 1 UI Layer** (`0x1800117f0` with `dl = 0`): Triggers screen re-compositing and layer redraw for Page 1. |
+| `0x0100` | `40` bytes (`chunk_size = 0`) | **Refresh Page 2 UI Layer** (`0x1800117f0` with `dl = 1`): Triggers screen re-compositing and layer redraw for Page 2. |
 
 ---
 
