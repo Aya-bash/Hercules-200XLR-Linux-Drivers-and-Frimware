@@ -1,0 +1,8 @@
+# Hercules Stream 200 XLR (Runtime Mode - 06f8:e054)
+SUBSYSTEM=="usb", ATTR{idVendor}=="06f8", ATTR{idProduct}=="e054", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+
+# Hercules Stream 200 XLR (DFU Bootloader Mode - 06f8:e055)
+SUBSYSTEM=="usb", ATTR{idVendor}=="06f8", ATTR{idProduct}=="e055", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+
+# Hercules Stream 100 (Runtime Mode - 06f8:e053)
+SUBSYSTEM=="usb", ATTR{idVendor}=="06f8", ATTR{idProduct}=="e053", MODE="0660", GROUP="plugdev", TAG+="uaccess"

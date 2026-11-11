@@ -1,0 +1,11 @@
+[package]
+name = "hsm200-driver"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Linux USB user-space driver library for the Hercules Stream 200 XLR (06f8:e054)"
+
+[dependencies]
+rusb.workspace = true
+thiserror.workspace = true

@@ -1,0 +1,15 @@
+# Rust build artifacts
+/target/
+
+# Never commit binary dumps, firmware images, PDFs, or media
+*.exe
+*.dll
+*.cab
+*.hdr
+*.tlimg
+*.bin
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.bmp
