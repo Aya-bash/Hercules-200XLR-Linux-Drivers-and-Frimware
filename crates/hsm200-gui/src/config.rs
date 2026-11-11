@@ -62,7 +62,7 @@ impl Default for Config {
     fn default() -> Self {
         let knob = |t: Target, i: u8| KnobBinding {
             target: t,
-            step_pct: 2.0,
+            step_pct: 1.0,
             push: ButtonAction::MuteKnob(i),
         };
         let app = |n: &str| Target::App(n.into());

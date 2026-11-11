@@ -373,7 +373,7 @@ impl DeckView {
             ui.horizontal(|ui| {
                 ui.label("Sensitivity:");
                 ui.add(
-                    egui::Slider::new(&mut self.config.knobs[idx].step_pct, 0.5..=10.0)
+                    egui::Slider::new(&mut self.config.knobs[idx].step_pct, 0.25..=10.0)
                         .suffix("% per click"),
                 );
             });
